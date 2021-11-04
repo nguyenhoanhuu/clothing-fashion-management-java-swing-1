@@ -1,6 +1,8 @@
 package clothing.management.app.gui;
 
+import clothing.management.dao.NhanVienDao;
 import clothing.management.dao.TaiKhoanDao;
+import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 
 import javax.swing.*;
@@ -9,18 +11,19 @@ import java.awt.event.ActionListener;
 
 public class GiaoDienDangNhap extends JFrame {
 
-    private JButton btnDangNhap;
-    private JButton btnThoat;
-    private JLabel lblTaiKhoan;
-    private JLabel lblMatKhau;
-    private JLabel lblLogo;
-    private JPanel pnlChinh;
-    private JPanel pnlBot;
-    private JPanel pnlTop;
-    private JPasswordField txtMatKhau;
-    private JTextField txtTaiKhoan;
+    private final JButton btnDangNhap;
+    private final JButton btnThoat;
+    private final JLabel lblTaiKhoan;
+    private final JLabel lblMatKhau;
+    private final JLabel lblLogo;
+    private final JPanel pnlChinh;
+    private final JPanel pnlBot;
+    private final JPanel pnlTop;
+    private final JPasswordField txtMatKhau;
+    private final JTextField txtTaiKhoan;
 
-    private TaiKhoanDao taiKhoanDao;
+    private final TaiKhoanDao taiKhoanDao;
+    private final NhanVienDao nhanVienDao;
 
     public GiaoDienDangNhap() {
         pnlChinh = new JPanel();
@@ -157,8 +160,9 @@ public class GiaoDienDangNhap extends JFrame {
                                 .addContainerGap()
                                 .addComponent(lblLogo, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-
-        taiKhoanDao = new TaiKhoanDao(MongoClients.create());
+        MongoClient mongoClients = MongoClients.create();
+        taiKhoanDao = new TaiKhoanDao(mongoClients);
+        nhanVienDao = new NhanVienDao(mongoClients);
     }
 
     private void btnThoatActionPerformed(ActionEvent evt) {
@@ -179,8 +183,16 @@ public class GiaoDienDangNhap extends JFrame {
         }
         try {
             if (taiKhoanDao.dangNhap(tenDangNhap, matKhau)) {
-                setVisible(false);
-                new GiaoDienDieuKhien().setVisible(true);
+                switch (nhanVienDao.timNhanVienTheoMa(tenDangNhap).getChucVu()) {
+                    case NHAN_VIEN -> {
+                        setVisible(false);
+                        new GiaoDienBanHang().setVisible(true);
+                    }
+                    case QUAN_LY -> {
+                        setVisible(false);
+                        new GiaoDienDieuKhien().setVisible(true);
+                    }
+                }
                 return;
             }
             JOptionPane.showMessageDialog(pnlChinh, "Sai mật khẩu hoặc tên đăng nhập");
