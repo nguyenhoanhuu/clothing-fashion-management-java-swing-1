@@ -4,7 +4,6 @@ import clothing.management.entity.LoaiSanPham;
 import clothing.management.entity.NhaCungCap;
 import clothing.management.entity.SanPham;
 
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mongodb.client.model.Filters;
@@ -22,9 +21,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SanPhamDao extends AbstractDao {
 	private static final Gson GSON = new Gson();
@@ -177,7 +178,7 @@ public class SanPhamDao extends AbstractDao {
 
 			@Override
 			public void onNext(UpdateResult t) {
-				if (t.getUpsertedId() != null)
+				if (t.getModifiedCount() > 0)
 
 					rs.set(true);
 			}
@@ -332,6 +333,86 @@ public class SanPhamDao extends AbstractDao {
 			}
 		}
 		return true;
+	}
+
+	public List<String> layDanhSachMaSanPham() throws InterruptedException {
+		CountDownLatch latch = new CountDownLatch(1);
+		List<String> dSMaSanPham = new ArrayList<String>();
+		sanPhamCollection.find().subscribe(new Subscriber<Document>() {
+
+			private Subscription s;
+
+			@Override
+			public void onSubscribe(Subscription s) {
+				this.s = s;
+				this.s.request(1);
+			}
+
+			@Override
+			public void onNext(Document t) {
+				String json = t.toJson();
+				SanPham sanPham = GSON.fromJson(json, SanPham.class);
+				dSMaSanPham.add(t.getString("maSanPham"));
+				this.s.request(1);
+			}
+
+			@Override
+			public void onError(Throwable t) {
+				t.printStackTrace();
+				onComplete();
+			}
+
+			@Override
+			public void onComplete() {
+				latch.countDown();
+			}
+		});
+
+		latch.await();
+		return dSMaSanPham;
+	}
+
+	public SanPham timSanPhamTheoMa(String maSanPham) throws InterruptedException {
+		CountDownLatch latch = new CountDownLatch(1);
+		AtomicReference<SanPham> reference = new AtomicReference<SanPham>();
+
+		Document doc1 = Document.parse("{$match:{\"maSanPham\":" + "\"" + maSanPham + "\"" + "}}");
+		sanPhamCollection.aggregate(Arrays.asList(doc1)).subscribe(new Subscriber<Document>() {
+			private Subscription s;
+
+			@Override
+			public void onSubscribe(Subscription s) {
+				this.s = s;
+				this.s.request(1);
+			}
+
+			@Override
+			public void onNext(Document t) {
+				if (t != null) {
+					String json = t.toJson();
+					SanPham sanPham = GSON.fromJson(json, SanPham.class);
+					NhaCungCap maNCC = new NhaCungCap(t.getString("maNhaCungCap"));
+					LoaiSanPham maLSP = new LoaiSanPham(t.getString("maLoai"));
+					sanPham.setLoaiSanPham(maLSP);
+					sanPham.setNhaCungCap(maNCC);
+					reference.set(sanPham);
+				}
+				this.s.request(1);
+			}
+
+			@Override
+			public void onError(Throwable t) {
+				t.printStackTrace();
+				onComplete();
+			}
+
+			@Override
+			public void onComplete() {
+				latch.countDown();
+			}
+		});
+		latch.await();
+		return reference.get();
 	}
 
 }
