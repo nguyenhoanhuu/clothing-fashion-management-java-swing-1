@@ -3,10 +3,32 @@ package clothing.management.app.gui;
 import javax.swing.*;
 import javax.swing.plaf.DimensionUIResource;
 import javax.swing.table.DefaultTableModel;
+
+import org.jdesktop.swingx.autocomplete.AutoCompleteDecorator;
+
+import com.google.gson.internal.PreJava9DateFormatProvider;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.toedter.calendar.JCalendar;
+import com.toedter.calendar.JDateChooser;
+import com.toedter.calendar.demo.JCalendarDemo;
+
+import clothing.management.dao.KhachHangDao;
+import clothing.management.dao.NhanVienDao;
+import clothing.management.dao.SanPhamDao;
+import clothing.management.entity.KhachHang;
+import clothing.management.entity.NhanVien;
+import clothing.management.entity.SanPham;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.text.NumberFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
-public class GiaoDienBanHang extends JFrame {
+public class GiaoDienBanHang extends JFrame implements ActionListener {
     private JPanel pnlSouthTieuDe;
     private JPanel pnlCenterLeft;
     private JPanel pnlCenterRight;
@@ -17,7 +39,6 @@ public class GiaoDienBanHang extends JFrame {
     private JPanel pnlBang;
     private DefaultTableModel dtm;
     private JTable tblSanPham;
-    private JButton btnCheckSDT;
     private JTextField txtMaNVLHD;
     private JTextField txtDiaChiKH;
     private JPanel pnlDangXuat;
@@ -45,7 +66,7 @@ public class GiaoDienBanHang extends JFrame {
     private JLabel lblNu;
     private JRadioButton radGTNu;
     private JLabel lblNS;
-    private JTextField txtNS;
+//    private JTextField txtNS;
     private JLabel lblEmail;
     private JTextField txtEmail;
     private JPanel pnlR1;
@@ -62,8 +83,14 @@ public class GiaoDienBanHang extends JFrame {
     private JButton btnQLKH;
     private JButton btnLHD;
     private JLabel lblKetQuaTTHD;
-
-    public GiaoDienBanHang() {
+	MongoClient client = MongoClients.create();
+	KhachHangDao khachHangDao = new KhachHangDao(client);
+	SanPhamDao sanPhamDao = new SanPhamDao(client);
+	NhanVienDao nhanVienDao = new NhanVienDao(client); 
+	String maNV = "NV00001";
+	private JDateChooser txtNS; 
+	
+    public GiaoDienBanHang() throws InterruptedException {
         this.setTitle("BÁN HÀNG");
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setUndecorated(false);
@@ -71,6 +98,7 @@ public class GiaoDienBanHang extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(false);
         setLocationRelativeTo(null);
+
 // Bắt đầu vùng South bao gồm: Tiêu đề và chức năng đăng xuất.
         pnlSouthTieuDe = new JPanel();
         pnlDangXuat = new JPanel();
@@ -80,14 +108,14 @@ public class GiaoDienBanHang extends JFrame {
         btnDangXuat.addActionListener(evt -> {
 			try {
 				btnDangXuatActionPerformed(evt);
-			} catch (InterruptedException e) {
+			} catch (InterruptedException e1) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
+				e1.printStackTrace();
 			}
 		});
         pnlDangXuat.add(btnDangXuat);
         pnlBanHang = new JPanel();
-        pnlBanHang.setPreferredSize(new Dimension(1000, 40));
+        pnlBanHang.setPreferredSize(new Dimension(1400, 40));
         JLabel lblHeader = new JLabel("BÁN HÀNG");
         lblHeader.setFont(new Font("Arial", Font.BOLD, 25));
         pnlBanHang.add(lblHeader);
@@ -106,7 +134,7 @@ public class GiaoDienBanHang extends JFrame {
 
         pnlCenterRight = new JPanel();
         pnlCenterRight.setBorder(BorderFactory.createTitledBorder("Khách Hàng"));
-        pnlCenterRight.setPreferredSize(new Dimension(500, 295));
+        pnlCenterRight.setPreferredSize(new Dimension(750, 295));
         pnlCenterRight.setLayout(new GridLayout(10, 1));
 //Vùng các textField & label
 //	
@@ -135,8 +163,9 @@ public class GiaoDienBanHang extends JFrame {
 
         JLabel lblNS = new JLabel("Ngày sinh:");
         lblNS.setPreferredSize(new Dimension(150, 25));
-        txtNS = new JTextField(50);
-
+//        txtNS = new JTextField(50);
+        txtNS = new JDateChooser("yyyy/MM/dd/HH:mm:ss", "####/##/##/##:##:##", '_');
+        txtNS.setPreferredSize(new DimensionUIResource(150, 25));
         JLabel lblEmail = new JLabel("Email:");
         lblEmail.setPreferredSize(new Dimension(150, 25));
         txtEmail = new JTextField(50);
@@ -150,7 +179,7 @@ public class GiaoDienBanHang extends JFrame {
         pnlR2.add(txtMKH);
 //****************************************************************
         pnlR3 = new JPanel();
-        pnlR3.setPreferredSize(new Dimension(500, pnlR3.HEIGHT));
+        pnlR3.setPreferredSize(new Dimension(770, pnlR3.HEIGHT));
         pnlR3.setLayout(new FlowLayout(FlowLayout.LEFT));
         pnlR3.add(lblHT);
         pnlR3.add(txtHT);
@@ -201,10 +230,13 @@ public class GiaoDienBanHang extends JFrame {
         pnlCenterLeftThem = new JPanel();
         pnlCenterLeftThem.setBorder(BorderFactory.createLoweredBevelBorder());
         cmbTim = new JComboBox<String>();
-        cmbTim.setEditable(false);
-        cmbTim.addItem("Mã sản phẩm");
-        cmbTim.addItem("Nhà cung cấp");
-        cmbTim.addItem("Tên sản phẩm");
+        
+        cmbTim.setEditable(true);
+        SanPhamDao sanPhamDao = new SanPhamDao(client);
+        sanPhamDao.layDanhSachMaSanPham().forEach(maSP ->{
+        	cmbTim.addItem(maSP);
+        });
+        AutoCompleteDecorator.decorate(cmbTim);
         btnTim = new JButton("Thêm");
         pnlCenterLeftThem.add(cmbTim);
 
@@ -221,16 +253,16 @@ public class GiaoDienBanHang extends JFrame {
         pnlCenter.add(pnlCenterLeftCN, BorderLayout.SOUTH);
 //**********************************************************************
         pnlSouth = new JPanel();
-        pnlSouth.setPreferredSize(new Dimension(1300, 430));
+        pnlSouth.setPreferredSize(new Dimension(1500, 430));
         pnlBang = new JPanel();
-        pnlBang.setPreferredSize(new Dimension(1300, 300));
+        pnlBang.setPreferredSize(new Dimension(1530, 300));
         pnlBang.setBorder(BorderFactory.createTitledBorder("Danh sách sản phẩm"));
         pnlBang.setLayout(new BoxLayout(pnlBang, BoxLayout.PAGE_AXIS));
         String[] cols = {"STT", "Mã sản phẩm", "Tên sản phẩm", "Loại sản phẩm", "Nhà cung cấp", "Kích cỡ", "Số lượng",
                 "Đơn giá", "Thành tiền"};
         dtm = new DefaultTableModel(cols, 0);
         tblSanPham = new JTable(dtm);
-
+        
         JScrollPane scroll = new JScrollPane(tblSanPham);
         pnlBang.add(scroll);
 
@@ -256,20 +288,21 @@ public class GiaoDienBanHang extends JFrame {
         btnXoaSP = new JButton("Xoá sản phẩm");
         btnQLKH = new JButton("Quản lý khách hàng");
         btnLHD = new JButton("Lập hoá đơn");
+        
 
         txtTMHD.setPreferredSize(new DimensionUIResource(100, 30));
         btnTKMaHD.setPreferredSize(new DimensionUIResource(200, 30));
         btnXoaSP.setPreferredSize(new DimensionUIResource(150, 30));
         btnQLKH.setPreferredSize(new DimensionUIResource(200, 30));
         btnLHD.setPreferredSize(new DimensionUIResource(150, 30));
-        btnLHD.addActionListener(evt -> {
-			try {
-				btnLHDActionPerformed(evt);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		});
+//        btnLHD.addActionListener(evt -> {
+//			try {
+//				btnLHDActionPerformed(evt);
+//			} catch (InterruptedException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		});
 
         pnlTungChucNang.add(txtTMHD);
         pnlTungChucNang.add(btnTKMaHD);
@@ -286,17 +319,126 @@ public class GiaoDienBanHang extends JFrame {
         this.add(pnlSouthTieuDe, BorderLayout.NORTH);
         this.add(pnlCenter, BorderLayout.CENTER);
         this.add(pnlSouth, BorderLayout.SOUTH);
-
+        
+//***************************************************************
+//      add sự kiện cho các button 
+        btnKiemTraSDT.addActionListener(this);
+        btnTim.addActionListener(this);
+        btnXoaSP.addActionListener(this);
+        btnLHD.addActionListener(this);
+        
+        
+    }
+    @SuppressWarnings("deprecation")
+	public void laythongtinkhachhang() throws InterruptedException {
+    	KhachHang khachhang = khachHangDao.timKhachHangTheoSDT(txtSDT.getText());
+    	if(khachhang.getMaKhachHang()!="Chưa xác định") {
+    		txtMKH.setText(khachhang.getMaKhachHang());
+    		txtHT.setText(khachhang.getHoTen());
+    		txtEmail.setText(khachhang.getEmail());
+    		txtNS.setDate(khachhang.getNgaySinh());
+    		if(khachhang.isGioiTinh()==true) {
+    			radGTNam.doClick();
+    		}else {
+    			radGTNu.doClick();
+    		}
+    		txtMKH.disable();
+    		txtHT.disable();
+    		txtEmail.disable();
+    		radGTNam.disable();
+    		
+    	}else 
+    		JOptionPane.showMessageDialog(this,"khách hàng chưa có.Vui lòng nhập thông tin khách hàng ");
     }
 
-    private void btnLHDActionPerformed(ActionEvent evt) throws InterruptedException {
-        new GiaoDienHoaDon("").setVisible(true);
-        setVisible(false);
-    }
+//    private void btnLHDActionPerformed(ActionEvent evt) throws InterruptedException {
+//        new GiaoDienHoaDon("").setVisible(true);
+//        setVisible(false);
+//    }
 
     private void btnDangXuatActionPerformed(ActionEvent evt) throws InterruptedException {
         new GiaoDienDieuKhien().setVisible(true);
         setVisible(false);
     }
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		Object obj = e.getSource();
+		if(obj.equals(btnKiemTraSDT)) {
+			try {
+				laythongtinkhachhang();
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}else if(obj.equals(btnTim)) {
+			String maSanPham = (String) cmbTim.getSelectedItem();
+			SanPham sanPham;
+			try {
+				sanPham = sanPhamDao.timSanPhamTheoMa(maSanPham);
+				Locale locale = new Locale("vi", "VN");      
+				NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(locale);
+				int stt = dtm.getRowCount();
+				String a = JOptionPane.showInputDialog("nhập vào số lượng sản của sản phẩm");
+				if(Integer.parseInt(a)<=sanPham.getSoLuong()) {
+					int soLuongSanPhamHT = sanPham.getSoLuong();
+					sanPham.setSoLuong(Integer.parseInt(a));
+					double thanhtien = sanPham.getGia()*sanPham.getSoLuong();
+					dtm.addRow(new Object[] {stt+1,
+							sanPham.getMaSanPham(),
+							sanPham.getTenSanPham(),
+							sanPham.getLoaiSanPham().getMaLoai(),
+							sanPham.getNhaCungCap().getMaNhaCungCap(),
+							sanPham.getDanhSachKichCo(),
+							sanPham.getSoLuong(),
+							currencyFormatter.format(sanPham.getGia()),
+							currencyFormatter.format(thanhtien)});
+					sanPham.setSoLuong(soLuongSanPhamHT-Integer.parseInt(a));
+					System.out.println(sanPham);
+					System.out.print(sanPhamDao.capNhatLoaiSanPham(maSanPham, (SanPham) sanPham));
+				}else {
+					JOptionPane.showMessageDialog(this,"số lượng của sản phẩm này chỉ còn "+sanPham.getSoLuong()+"\n\t.Vui lòng chọn số nhỏ hơn!"
+							);
+				}
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+
+		}else if(obj.equals(btnXoaSP)) {
+			int a= tblSanPham.getSelectedRow();
+			dtm.removeRow(a);
+			capNhatSoThuTu(tblSanPham.getRowCount());
+		}else if(obj.equals(btnLHD)) {
+				NhanVien nhanVien;
+				try {
+					nhanVien = nhanVienDao.timNhanVienTheoMa(maNV);
+					boolean gioitinh = true;
+					if(radGTNam.getInheritsPopupMenu() == true ) {
+						gioitinh = true;
+					}else {
+						gioitinh = false;
+					}
+					KhachHang khachHang = new KhachHang(txtMKH.getText(),txtHT.getText(),txtSDT.getText(),gioitinh,txtEmail.getText(),txtNS.getDate());
+					System.out.println(khachHang);
+				System.out.println(nhanVien);
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+
+		}
+	}
+//	ham cập nhật lại STT
+	public void capNhatSoThuTu(int row) {
+		int stt = 1 ;
+		while(stt <= row) {
+			dtm.setValueAt(stt,stt-1, 0);
+			stt++;
+		}
+	}
+////	cập nhật số lượng sản phẩm trong kho 
+//	public boolean capnhatsoluongsanpham(SanPham sanPham,int soluongban) {
+//		sanPhamDao.cap
+//	}
 
 }

@@ -1,6 +1,8 @@
 package clothing.management.app.gui;
 
 import javax.swing.*;
+
+import java.util.Date;
 import java.util.List;
 import javax.swing.plaf.DimensionUIResource;
 import javax.swing.table.DefaultTableModel;
@@ -93,7 +95,7 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 		JScrollPane scroll = new JScrollPane(table);
 
 		List<KhachHang> DSKhachHang = khachHangDao.layDanhSachKhachHang();
-		System.out.println(DSKhachHang);
+
 		for (KhachHang khachHang : DSKhachHang) {
 			dtm.addRow(new Object[] { khachHang.getMaKhachHang(), khachHang.getHoTen(), khachHang.getSoDienThoai(),
 					khachHang.isGioiTinh(), khachHang.getEmail(), khachHang.getNgaySinh()
@@ -132,6 +134,17 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 		});
 		btnUpdate = new JButton("Cập Nhật");
 
+		btnUpdate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent evt) {
+				try {
+					btnUpdateActionPerformed(evt);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		});
+
 		btnDelete = new JButton("Xoá");
 		btnDelete.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent evt) {
@@ -140,7 +153,7 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 		});
 
 		btnPrint = new JButton("Kết Xuất");
-		
+
 		pn3BL.add(txtFind);
 		pn3BL.add(lbFind);
 		pn3BL.add(cboFind);
@@ -156,7 +169,6 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 		pn3BL.add(btnUpdate);
 		pn3BL.add(btnDelete);
 		pn3BL.add(btnPrint);
-
 		pn3.add(pn3BL);
 
 		this.add(pn1, BorderLayout.NORTH);
@@ -169,10 +181,36 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 		setVisible(false);
 	}
 
+	private void btnUpdateActionPerformed(ActionEvent evt) throws InterruptedException {
+
+		int select = table.getSelectedRow();
+
+		if (select < 0) {
+			JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần sửa");
+		} else {
+			if (JOptionPane.showConfirmDialog(this, "Bạn có muốn sửa khách hàng không!", "Cảnh Báo",
+					JOptionPane.YES_NO_CANCEL_OPTION) == JOptionPane.YES_OPTION) {
+				try {
+					String ma = (String) table.getValueAt(select, 0);
+					String ten = (String) table.getValueAt(select, 1);
+					String SDT = (String) table.getValueAt(select, 2);
+					Boolean gioiTinh = (Boolean) table.getValueAt(select, 3);
+					String email = (String) table.getValueAt(select, 4);
+					String ngaySinh = (String) table.getValueAt(select, 5);
+					KhachHang khachHang = new KhachHang(ma, ten, SDT, gioiTinh, email,
+							new Date(System.currentTimeMillis()));
+					khachHangDao.capNhatThongTinKhachHang((String) table.getValueAt(select, 0), khachHang);
+				} catch (Exception e2) {
+					e2.printStackTrace();
+				}
+			}
+		}
+	}
+
 	private void btnDeleteActionPerformed(ActionEvent evt) {
 		int row = table.getSelectedRow();
 		if (row < 0) {
-			JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xoá");
+			JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xóa");
 		} else {
 			if (JOptionPane.showConfirmDialog(this, "Bạn có muốn xoá khách hàng này không!", "Cảnh Báo",
 					JOptionPane.YES_NO_CANCEL_OPTION) == JOptionPane.YES_OPTION) {
@@ -184,7 +222,9 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 					e2.printStackTrace();
 				}
 			}
+
 		}
+
 	}
 
 	private void btnSearchActionPerformed(ActionEvent evt) throws InterruptedException {
@@ -234,22 +274,22 @@ public class GiaoDienQuanLyKhachHang extends JFrame {
 			break;
 		}
 
-		case 3: {
-
-			String SDTKhachHang = txtFind.getText();
-
-			List<KhachHang> DSKhachHang = khachHangDao.timKhachHangTheoSDT(SDTKhachHang);
-			dtm.setRowCount(0);
-
-			for (KhachHang khachHang : DSKhachHang) {
-
-				dtm.addRow(new Object[] { khachHang.getMaKhachHang(), khachHang.getHoTen(), khachHang.getSoDienThoai(),
-						khachHang.isGioiTinh(), khachHang.getEmail(), khachHang.getNgaySinh() });
-
-			}
-
-			break;
-		}
+//		case 3: {
+//
+//			String SDTKhachHang = txtFind.getText();
+//
+//			List<KhachHang> DSKhachHang = khachHangDao.timKhachHangTheoSDT(SDTKhachHang);
+//			dtm.setRowCount(0);
+//
+//			for (KhachHang khachHang : DSKhachHang) {
+//
+//				dtm.addRow(new Object[] { khachHang.getMaKhachHang(), khachHang.getHoTen(), khachHang.getSoDienThoai(),
+//						khachHang.isGioiTinh(), khachHang.getEmail(), khachHang.getNgaySinh() });
+//
+//			}
+//
+//			break;
+//		}
 		}
 	}
 
